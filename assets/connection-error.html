@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SaveYa Phone — Connection Lost</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1220;
+        --bg-soft: #111a2e;
+        --brand: #3d5b9e;
+        --brand-hover: #4a6ab8;
+        --text: #e6ecf5;
+        --text-dim: #94a3b8;
+        --text-faint: #64748b;
+        --border: rgba(148, 163, 184, 0.12);
+        --warn: #f59e0b;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      /* Draggable top strip — matches main.ts DRAG_CSS so users can move the
+         window from the top edge while this page is showing. */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 28px;
+        -webkit-app-region: drag;
+        pointer-events: none;
+        z-index: 9999;
+      }
+      .center {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 32px;
+        text-align: center;
+        background: radial-gradient(ellipse at top, rgba(61, 91, 158, 0.12), transparent 55%);
+      }
+      .logo {
+        width: 72px;
+        height: 72px;
+        border-radius: 16px;
+        background: var(--brand);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Times New Roman', Georgia, serif;
+        font-style: italic;
+        font-weight: 700;
+        font-size: 44px;
+        color: white;
+        margin-bottom: 28px;
+        box-shadow: 0 8px 32px rgba(61, 91, 158, 0.35);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .subtitle {
+        margin: 0 0 8px;
+        color: var(--text-dim);
+        font-size: 14px;
+        max-width: 420px;
+        line-height: 1.55;
+      }
+      .reason {
+        margin: 0 0 28px;
+        color: var(--text-faint);
+        font-size: 12px;
+        max-width: 420px;
+        line-height: 1.55;
+        font-family: -apple-system-monospaced, 'SF Mono', Menlo, Consolas, monospace;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        font: inherit;
+        -webkit-app-region: no-drag;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 11px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 120ms ease, transform 80ms ease;
+      }
+      .btn-primary:hover { background: var(--brand-hover); }
+      .btn-primary:active { transform: scale(0.98); }
+      .btn-primary[disabled] {
+        opacity: 0.6;
+        cursor: progress;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-size: 13px;
+        transition: color 120ms ease, border-color 120ms ease;
+      }
+      .btn-ghost:hover { color: var(--text); border-color: rgba(148, 163, 184, 0.28); }
+      .countdown {
+        margin-top: 22px;
+        color: var(--text-faint);
+        font-size: 12px;
+        min-height: 18px;
+      }
+      .countdown .pulse {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--warn);
+        vertical-align: middle;
+        margin-right: 8px;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="center">
+      <div class="logo" aria-hidden="true">E</div>
+      <h1 id="title">Can't reach SaveYa Phone</h1>
+      <p class="subtitle" id="subtitle">
+        We couldn't load the app. This is usually a brief network blip or a server hiccup &mdash;
+        it should clear up on its own in a few seconds.
+      </p>
+      <p class="reason" id="reason"></p>
+      <div class="actions">
+        <button class="btn-primary" id="retry">Try again now</button>
+        <button class="btn-ghost" id="reset">Reset &amp; Reload</button>
+        <button class="btn-ghost" id="quit">Quit SaveYa Phone</button>
+      </div>
+      <p class="subtitle" id="reset-hint" style="margin-top:18px;margin-bottom:0;font-size:12.5px;color:var(--text-faint);">
+        Still stuck or showing a black screen? <strong style="color:var(--text-dim);">Reset &amp; Reload</strong>
+        clears the app's cache and restarts it &mdash; you'll stay logged in.
+      </p>
+      <div class="countdown" id="countdown"><span class="pulse"></span><span id="countdown-text">Retrying automatically in 8s&hellip;</span></div>
+    </div>
+
+    <script>
+      // The renderer sandbox exposes window.saveyaDesktop via preload.ts.
+      // retryConnect() asks main to load APP_URL again; if successful the
+      // window navigates away from this page. If it fails again, main
+      // re-loads this page, which resets the countdown.
+      const retryBtn = document.getElementById('retry');
+      const quitBtn = document.getElementById('quit');
+      const countdownText = document.getElementById('countdown-text');
+      const reasonEl = document.getElementById('reason');
+
+      const params = new URLSearchParams(window.location.search);
+      const errorCode = params.get('code');
+      const errorDesc = params.get('desc');
+      const errorUrl = params.get('url');
+      if (errorCode || errorDesc) {
+        const parts = [];
+        if (errorDesc) parts.push(errorDesc);
+        if (errorCode) parts.push('(' + errorCode + ')');
+        reasonEl.textContent = parts.join(' ');
+      }
+
+      let secondsLeft = 8;
+      let autoRetryTimer = null;
+      let retrying = false;
+
+      function tick() {
+        if (retrying) return;
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+          doRetry();
+          return;
+        }
+        countdownText.textContent = 'Retrying automatically in ' + secondsLeft + 's…';
+      }
+
+      function startCountdown() {
+        secondsLeft = 8;
+        countdownText.textContent = 'Retrying automatically in 8s…';
+        if (autoRetryTimer) clearInterval(autoRetryTimer);
+        autoRetryTimer = setInterval(tick, 1000);
+      }
+
+      function doRetry() {
+        if (retrying) return;
+        retrying = true;
+        if (autoRetryTimer) { clearInterval(autoRetryTimer); autoRetryTimer = null; }
+        retryBtn.setAttribute('disabled', 'true');
+        retryBtn.textContent = 'Reconnecting…';
+        countdownText.textContent = 'Reconnecting…';
+        try {
+          window.saveyaDesktop?.retryConnect?.();
+        } catch (err) {
+          // Fall back to a hard reload if preload bridge is somehow missing.
+          window.location.reload();
+        }
+        // If main fails again, it re-navigates back here and the page reloads,
+        // which resets all state. Re-enable after a generous safety timeout
+        // just in case the retry succeeds but takes a while.
+        setTimeout(() => {
+          retryBtn.removeAttribute('disabled');
+          retryBtn.textContent = 'Try again now';
+          retrying = false;
+          startCountdown();
+        }, 12000);
+      }
+
+      retryBtn.addEventListener('click', doRetry);
+      const resetBtn = document.getElementById('reset');
+      resetBtn.addEventListener('click', () => {
+        if (autoRetryTimer) { clearInterval(autoRetryTimer); autoRetryTimer = null; }
+        resetBtn.setAttribute('disabled', 'true');
+        resetBtn.textContent = 'Resetting…';
+        countdownText.textContent = 'Clearing cache and restarting…';
+        try {
+          window.saveyaDesktop?.resetReload?.();
+        } catch (err) {
+          window.location.reload();
+        }
+      });
+      quitBtn.addEventListener('click', () => {
+        try { window.saveyaDesktop?.quit?.(); } catch { /* main may handle close */ }
+      });
+
+      startCountdown();
+    </script>
+  </body>
+</html>
