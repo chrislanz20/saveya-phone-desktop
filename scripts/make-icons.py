@@ -4,10 +4,10 @@
 Run from repo root:
     python3 scripts/make-icons.py
 
-The previous version DREW an icon with primitives and stamped "EP" (Eskew
-Phone) under it. This one uses SaveYa's actual emblem instead — the teal mark
-on its own sampled navy — so the app in the dock is the product's real
-identity, not a placeholder.
+The previous version DREW an icon with primitives and stamped initials under
+it. This one uses SaveYa's actual emblem instead — the teal mark on its own
+sampled navy — so the app in the dock is the product's real identity, not a
+placeholder.
 
 Outputs:
     build/icon.png            (512x512, used by electron-builder for Windows)
