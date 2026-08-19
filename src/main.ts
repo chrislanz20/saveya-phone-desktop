@@ -760,6 +760,28 @@ app.whenReady().then(() => {
     quitApp();
   });
 
+  // "Open notification settings" — the in-app alerts card fires this.
+  //
+  // No app can flip the OS notification switch for a user; Apple and Microsoft
+  // both reserve that. What we CAN do is land them on the exact pane instead of
+  // reading them five steps of instructions, which is where people give up.
+  // Chris hit this himself on 2026-08-19: the chime played, the banner did not,
+  // and the fix was buried in System Settings.
+  ipcMain.on("saveya:open-notification-settings", () => {
+    const url =
+      process.platform === "darwin"
+        ? "x-apple.systempreferences:com.apple.Notifications-Settings.extension"
+        : process.platform === "win32"
+          ? "ms-settings:notifications"
+          : "";
+    if (!url) return;
+    shell.openExternal(url).catch((e) => {
+      // Never crash the app over a settings deep link — the card still shows
+      // the manual steps underneath the button.
+      log.warn(`[notif-settings] could not open ${url}: ${String(e)}`);
+    });
+  });
+
   // "Reset & Reload" — tray menu + error page. Clears the service-worker /
   // cache / shader storage (login preserved) then relaunches with a full
   // GPU/shader cache wipe. The one-click fix for a stuck black screen.

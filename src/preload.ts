@@ -22,4 +22,9 @@ contextBridge.exposeInMainWorld("saveyaDesktop", {
   retryConnect: () => ipcRenderer.send("saveya:retry-connect"),
   resetReload: () => ipcRenderer.send("saveya:reset-reload"),
   quit: () => ipcRenderer.send("saveya:quit"),
+  // Opens the OS notification pane for this app. Presence of this method is
+  // how the web app decides whether to show the one-click button at all, so an
+  // older installed build simply keeps the manual steps.
+  openNotificationSettings: () =>
+    ipcRenderer.send("saveya:open-notification-settings"),
 });
