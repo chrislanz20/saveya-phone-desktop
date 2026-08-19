@@ -1,5 +1,11 @@
 # Manual steps before shipping a signed .dmg
 
+> ⚠️ **HISTORICAL — both steps below are DONE.** As of 2026-08-18 the Mac build is
+> signed with `Developer ID Application: Christopher Lanzilli (L78CXLCJLX)` and
+> notarized by Apple; `spctl` reports `source=Notarized Developer ID` and Gatekeeper
+> accepts it with no warning. Verified against the built app, not the docs.
+> Kept only as the record of how the certificate was originally obtained.
+
 The unsigned `.dmg` is built and works for internal testing. Two manual things have to happen before staff can install without a Gatekeeper warning:
 
 ## 1. Generate the Developer ID Application certificate (one-time, ~10 min)
