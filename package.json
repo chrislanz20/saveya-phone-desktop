@@ -1,6 +1,6 @@
 {
   "name": "saveya-phone-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SaveYa Phone desktop app",
   "main": "dist/main.js",
   "author": {
