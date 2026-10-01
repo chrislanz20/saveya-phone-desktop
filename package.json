@@ -1,6 +1,6 @@
 {
   "name": "saveya-phone-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "SaveYa Phone desktop app",
   "main": "dist/main.js",
   "author": {
@@ -34,7 +34,7 @@
   "build": {
     "appId": "com.saveyatech.phone.desktop",
     "productName": "SaveYa Phone",
-    "copyright": "Copyright \u00a9 2025 SaveYa Tech",
+    "copyright": "Copyright © 2025 SaveYa Tech",
     "directories": {
       "buildResources": "build",
       "output": "out"

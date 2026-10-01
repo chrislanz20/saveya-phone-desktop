@@ -36,13 +36,34 @@ jobs:
           echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/private_keys/AuthKey.p8"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/private_keys/AuthKey.p8" >> "$GITHUB_ENV"
 
+      - name: Import signing certificate into a build keychain
+        # Oct 2026: electron-builder's own temporary keychain stopped unlocking on
+        # the macos-26 runner image ("SecKeychainUnlock: The user name or
+        # passphrase you entered is not correct" in set-key-partition-list), so
+        # the certificate goes into a keychain made here, with a known password,
+        # and electron-builder finds the identity in it (CSC_LINK left unset).
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KPASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KPASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPASS" "$KEYCHAIN"
+          echo "$CSC_LINK" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CSC_KEY_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPASS" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
       - name: Build, sign, notarize, and publish Mac installer
         run: npx --no-install electron-builder --mac --publish always
         env:
           # CSC_LINK accepts base64-encoded .p12 content directly (electron-builder
           # decodes it into a temporary keychain) — no manual keychain import needed.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Signing identity comes from the keychain imported above.
           APPLE_API_KEY: ${{ env.APPLE_API_KEY_PATH }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -51,6 +72,8 @@ jobs:
           # The default GITHUB_TOKEN can edit releases in this repo (contents: write).
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean up API key
+      - name: Clean up API key and keychain
         if: always()
-        run: rm -f "$RUNNER_TEMP/private_keys/AuthKey.p8"
+        run: |
+          rm -f "$RUNNER_TEMP/private_keys/AuthKey.p8"
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
