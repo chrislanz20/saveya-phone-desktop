@@ -39,11 +39,59 @@ function loadTrayIcon(): Electron.NativeImage {
   return nativeImage.createEmpty();
 }
 
+// The same glyph with a red dot, for unread things while the window is closed
+// (assets/trayUnread*.png). Not a template image — a template is drawn in one
+// colour by macOS and the dot would vanish; it is used on Windows only.
+function loadUnreadTrayIcon(): Electron.NativeImage | null {
+  const candidates = [
+    path.join(__dirname, "..", "assets", "trayUnread.png"),
+    path.join(process.resourcesPath || "", "assets", "trayUnread.png"),
+    path.join(app.getAppPath(), "assets", "trayUnread.png"),
+  ];
+  for (const p of candidates) {
+    try {
+      const img = nativeImage.createFromPath(p);
+      if (!img.isEmpty()) return img;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+let unreadCount = 0;
+let normalIcon: Electron.NativeImage | null = null;
+let unreadIcon: Electron.NativeImage | null | undefined;
+
+/**
+ * Show the unread count on the tray: in the hover text everywhere, and as a
+ * red dot on the icon on Windows (macOS shows the number on the Dock icon).
+ */
+export function setTrayUnread(count: number): void {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  if (n === unreadCount) return;
+  unreadCount = n;
+  applyTrayUnread();
+}
+
+// Separate so createTray can apply a count that arrived before the tray existed.
+function applyTrayUnread(): void {
+  const n = unreadCount;
+  if (!tray || tray.isDestroyed()) return;
+  tray.setToolTip(n > 0 ? `SaveYa Phone — ${n} unread` : "SaveYa Phone");
+  if (process.platform !== "win32") return;
+  if (unreadIcon === undefined) unreadIcon = loadUnreadTrayIcon();
+  if (n > 0 && unreadIcon) tray.setImage(unreadIcon);
+  else if (normalIcon) tray.setImage(normalIcon);
+}
+
 export function createTray(h: TrayHandlers): Tray {
   handlers = h;
   const icon = loadTrayIcon();
+  normalIcon = icon;
   tray = new Tray(icon);
   tray.setToolTip("SaveYa Phone");
+  applyTrayUnread();
   tray.on("click", () => toggleWindow());
   tray.on("right-click", () => tray?.popUpContextMenu());
   updateTrayMenu(h.getWindow());

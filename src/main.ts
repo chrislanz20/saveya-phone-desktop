@@ -10,7 +10,7 @@ import {
   shell,
 } from "electron";
 import * as path from "path";
-import { createTray, updateTrayMenu } from "./tray";
+import { createTray, updateTrayMenu, setTrayUnread } from "./tray";
 import { initAutoUpdater, installDownloadedUpdate } from "./updater";
 import {
   disableGpuAndRelaunch,
@@ -451,11 +451,10 @@ function createMainWindow(): BrowserWindow {
     if (!isQuitting) {
       e.preventDefault();
       win.hide();
-      if (process.platform === "darwin") {
-        // Hide from the Dock so it really feels backgrounded.
-        // Comment this out if Chris wants the Dock icon to remain.
-        app.dock?.hide();
-      }
+      // The Dock icon STAYS (Chris, 1 Oct 2026: "keep the icon in the dock with
+      // its number when you close the window, like Slack"). It used to be
+      // hidden here, which took the red unread number away with it; clicking
+      // the icon brings the window back (app "activate").
       updateTrayMenu(getMainWindow());
     }
   });
@@ -806,6 +805,9 @@ app.whenReady().then(() => {
   // Web app pushes the total unread count whenever it changes; 0 clears.
   ipcMain.on("saveya:set-badge", (_event, count: number) => {
     const n = Math.max(0, Math.floor(Number(count) || 0));
+    // The tray icon carries it too: on Windows a closed window has no taskbar
+    // button (so no overlay below) and the tray is the only place left.
+    setTrayUnread(n);
     if (process.platform === "darwin") {
       app.dock?.setBadge(n > 0 ? String(n) : "");
     } else if (process.platform === "win32" && mainWindow && !mainWindow.isDestroyed()) {
